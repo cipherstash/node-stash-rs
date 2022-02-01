@@ -19,52 +19,16 @@ describe("Init", () => {
 })
 
 describe("Encrypt", () => {
-  test("encrypt big int", () => {
-    let ore = ORE.init(k1, k2);
-    expect(ore.encrypt(456n).length).toEqual(408);
-  })
-
   test("encrypt number", () => {
     let ore = ORE.init(k1, k2);
-    expect(ore.encrypt(456).length).toEqual(408);
-  })
-
-  test("encrypt buffer", () => {
-    let ore = ORE.init(k1, k2);
-    let buf = Buffer.from([1, 1, 1, 1, 2, 2, 2, 2]);
-    expect(ore.encrypt(buf).length).toEqual(408);
-  })
-
-  test("invalid plaintext size", () => {
-    expect(() => {
-      let ore = ORE.init(k1, k2);
-      ore.encrypt(456942938989889898333322n);
-    }).toThrow(/out of range/)
+    expect(ore.encrypt(ORE.encodeNumber(456)).length).toEqual(408);
   })
 })
 
 describe("Encrypt Left", () => {
-  test("encrypt big int", () => {
-    let ore = ORE.init(k1, k2);
-    expect(ore.encryptLeft(456n).length).toEqual(136);
-  })
-
   test("encrypt number", () => {
     let ore = ORE.init(k1, k2);
-    expect(ore.encryptLeft(456).length).toEqual(136);
-  })
-
-  test("encrypt buffer", () => {
-    let ore = ORE.init(k1, k2);
-    let buf = Buffer.from([1, 1, 1, 1, 2, 2, 2, 2]);
-    expect(ore.encryptLeft(buf).length).toEqual(136);
-  })
-
-  test("invalid plaintext size", () => {
-    expect(() => {
-      let ore = ORE.init(k1, k2);
-      ore.encryptLeft(456942938989889898333322n);
-    }).toThrow(/out of range/)
+    expect(ore.encryptLeft(ORE.encodeNumber(456)).length).toEqual(136);
   })
 })
 
@@ -75,8 +39,8 @@ describe("Compare (big-int)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(456n),
-        ore.encrypt(100n)
+        ore.encrypt(ORE.encodeNumber(456)),
+        ore.encrypt(ORE.encodeNumber(100))
       )).toEqual(1);
   })
 
@@ -85,8 +49,8 @@ describe("Compare (big-int)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(100n),
-        ore.encrypt(788881001n)
+        ore.encrypt(ORE.encodeNumber(100)),
+        ore.encrypt(ORE.encodeNumber(788881001))
       )).toEqual(-1);
   })
 
@@ -95,8 +59,8 @@ describe("Compare (big-int)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(100888n),
-        ore.encrypt(100888n)
+        ore.encrypt(ORE.encodeNumber(100888)),
+        ore.encrypt(ORE.encodeNumber(100888))
       )).toEqual(0);
   })
 
@@ -105,19 +69,8 @@ describe("Compare (big-int)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(0n),
-        ore.encrypt(0n)
-      )).toEqual(0);
-  })
-
-  test("compare equal 64-bit max", () => {
-    let ore = ORE.init(k1, k2);
-    let max = 2n ** 64n - 1n;
-
-    expect(
-      ORE.compare(
-        ore.encrypt(max),
-        ore.encrypt(max)
+        ore.encrypt(ORE.encodeNumber(0)),
+        ore.encrypt(ORE.encodeNumber(0))
       )).toEqual(0);
   })
 })
@@ -128,8 +81,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(456),
-        ore.encrypt(100)
+        ore.encrypt(ORE.encodeNumber(456)),
+        ore.encrypt(ORE.encodeNumber(100))
       )).toEqual(1);
   })
 
@@ -138,8 +91,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(100),
-        ore.encrypt(788881001.75)
+        ore.encrypt(ORE.encodeNumber(100)),
+        ore.encrypt(ORE.encodeNumber(788881001.75))
       )).toEqual(-1);
   })
 
@@ -148,8 +101,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(10088),
-        ore.encrypt(10088)
+        ore.encrypt(ORE.encodeNumber(10088)),
+        ore.encrypt(ORE.encodeNumber(10088))
       )).toEqual(0);
   })
 
@@ -158,8 +111,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(0),
-        ore.encrypt(0)
+        ore.encrypt(ORE.encodeNumber(0)),
+        ore.encrypt(ORE.encodeNumber(0))
       )).toEqual(0);
   })
 
@@ -168,8 +121,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(Number.MAX_SAFE_INTEGER),
-        ore.encrypt(Number.MAX_SAFE_INTEGER)
+        ore.encrypt(ORE.encodeNumber(Number.MAX_SAFE_INTEGER)),
+        ore.encrypt(ORE.encodeNumber(Number.MAX_SAFE_INTEGER))
       )).toEqual(0);
   })
 
@@ -178,8 +131,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(800.3),
-        ore.encrypt(800.7)
+        ore.encrypt(ORE.encodeNumber(800.3)),
+        ore.encrypt(ORE.encodeNumber(800.7))
       )).toEqual(-1);
   })
 
@@ -188,8 +141,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(80000.75),
-        ore.encrypt(800.0075)
+        ore.encrypt(ORE.encodeNumber(80000.75)),
+        ore.encrypt(ORE.encodeNumber(800.0075))
       )).toEqual(1);
   })
 
@@ -198,8 +151,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(-800),
-        ore.encrypt(700)
+        ore.encrypt(ORE.encodeNumber(-800)),
+        ore.encrypt(ORE.encodeNumber(700))
       )).toEqual(-1);
   })
 
@@ -208,8 +161,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(-800),
-        ore.encrypt(-900)
+        ore.encrypt(ORE.encodeNumber(-800)),
+        ore.encrypt(ORE.encodeNumber(-900))
       )).toEqual(1);
   })
 
@@ -218,8 +171,8 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(-800.3),
-        ore.encrypt(-800.766)
+        ore.encrypt(ORE.encodeNumber(-800.3)),
+        ore.encrypt(ORE.encodeNumber(-800.766))
       )).toEqual(1);
   })
 
@@ -228,8 +181,17 @@ describe("Compare (number)", () => {
 
     expect(
       ORE.compare(
-        ore.encrypt(-80076.6),
-        ore.encrypt(-800.766)
+        ore.encrypt(ORE.encodeNumber(-80076.6)),
+        ore.encrypt(ORE.encodeNumber(-800.766))
       )).toEqual(-1);
+  })
+})
+
+describe("encodeString", () => {
+  test("different strings with same NFC form generate the same encoding", () => {
+    // See: https://unicode.org/reports/tr15/#Singletons_Figure
+    let s1 = '\u1E0A\u0323'
+    let s2 = '\u1E0C\u0307'
+    expect(ORE.encodeString(s1)).toEqual(ORE.encodeString(s2))
   })
 })

@@ -1,6 +1,9 @@
 use hex_literal::hex;
-use neon::{prelude::*, result::Throw};
-use ore_rs::{scheme::bit2::OREAES128, ORECipher, OREEncrypt, OREError, PlainText};
+use neon::{prelude::*};
+use ore_rs::{scheme::bit2::OREAES128, ORECipher, OREEncrypt};
+use ore_encoding_rs::OrePlaintext;
+use ore_encoding_rs::siphash;
+use unicode_normalization::UnicodeNormalization;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 
@@ -24,7 +27,7 @@ fn init(mut cx: FunctionContext) -> JsResult<BoxedCipher> {
             return Err("Invalid key length");
         }
         k.clone_from_slice(data.as_slice::<u8>());
-        return Ok(k);
+        Ok(k)
     };
 
     let k1 = cx.borrow(&arg0, clone_key).or_else(|e| cx.throw_error(e))?;
@@ -41,10 +44,9 @@ fn init(mut cx: FunctionContext) -> JsResult<BoxedCipher> {
 fn encrypt_num(mut cx: FunctionContext) -> JsResult<JsBuffer> {
     let cipher = cx.argument::<BoxedCipher>(0)?;
     let ore = &mut *cipher.borrow_mut();
-    let input = cx.argument::<JsNumber>(1)?;
+    let input: u64 = cx.argument::<JsNumber>(1)?.value(&mut cx).to_bits();
 
     let result = input
-        .value(&mut cx)
         .encrypt(&mut ore.0)
         .or_else(|_| cx.throw_error("ORE Error"))?
         .to_bytes();
@@ -55,40 +57,11 @@ fn encrypt_num(mut cx: FunctionContext) -> JsResult<JsBuffer> {
 fn encrypt_num_left(mut cx: FunctionContext) -> JsResult<JsBuffer> {
     let cipher = cx.argument::<BoxedCipher>(0)?;
     let ore = &mut *cipher.borrow_mut();
-    let input = cx.argument::<JsNumber>(1)?;
+    let input: u64 = cx.argument::<JsNumber>(1)?.value(&mut cx).to_bits();
 
     let result = input
-        .value(&mut cx)
         .encrypt_left(&mut ore.0)
         .or_else(|_| cx.throw_error("ORE Error"))?
-        .to_bytes();
-
-    Ok(JsBuffer::external(&mut cx, result))
-}
-
-/* This currently only supports 8-byte input buffers. ore.rs will be changed to handle arbitrarily
- * sized input slices later which will make this function a bit more flexible. */
-fn encrypt_buf(mut cx: FunctionContext) -> JsResult<JsBuffer> {
-    let cipher = cx.argument::<BoxedCipher>(0)?;
-    let ore = &mut *cipher.borrow_mut();
-    
-    let result =
-        fetch_plaintext_from_js_buffer::<8>(&mut cx, 1)?
-        .encrypt(&mut ore.0)
-        .or_else(|_: OREError| cx.throw_error("ORE error"))?
-        .to_bytes();
-
-    Ok(JsBuffer::external(&mut cx, result))
-}
-
-fn encrypt_buf_left(mut cx: FunctionContext) -> JsResult<JsBuffer> {
-    let cipher = cx.argument::<BoxedCipher>(0)?;
-    let ore = &mut *cipher.borrow_mut();
-
-    let result =
-        fetch_plaintext_from_js_buffer::<8>(&mut cx, 1)?
-        .encrypt_left(&mut ore.0)
-        .or_else(|_: OREError| cx.throw_error("ORE error"))?
         .to_bytes();
 
     Ok(JsBuffer::external(&mut cx, result))
@@ -103,7 +76,7 @@ fn compare(mut cx: FunctionContext) -> JsResult<JsNumber> {
 
         cx.borrow(&b, |data_b| {
             let slice_b = data_b.as_slice::<u8>();
-            OREAES128::compare_raw_slices(&slice_a, &slice_b)
+            OREAES128::compare_raw_slices(slice_a, slice_b)
         })
     });
 
@@ -115,28 +88,27 @@ fn compare(mut cx: FunctionContext) -> JsResult<JsNumber> {
     }
 }
 
-/* Helper function to extract a plaintext from a JS Buffer */
-fn fetch_plaintext_from_js_buffer<const N: usize>(cx: &mut FunctionContext, arg: i32) -> Result<PlainText<N>, Throw> {
-    let input = cx.argument::<JsBuffer>(arg)?;
+fn encode_num(mut cx: FunctionContext) -> JsResult<JsNumber> {
+    let input = cx.argument::<JsNumber>(0)?.value(&mut cx);
+    let output = f64::from_bits(OrePlaintext::<u64>::from(input).0);
+    Ok(cx.number(output))
+}
 
-    cx.borrow(&input, |data| {
-        let mut plaintext: PlainText<N> = [0; N];
-        let slice = data.as_slice::<u8>();
-        if slice.len() != N {
-            return Err("Invalid plaintext length");
-        }
-        plaintext.clone_from_slice(slice);
-        Ok(plaintext)
-    })
-    .or_else(|e| cx.throw_error(e))
+fn encode_string(mut cx: FunctionContext) -> JsResult<JsNumber> {
+    let input = cx.argument::<JsString>(0)?.value(&mut cx);
+    // Unicode normalization FTW (NFC)
+    //                    👇👇👇
+    let normalized = input.nfc().collect::<String>();
+    let output = siphash(normalized.as_bytes());
+    Ok(cx.number(f64::from_bits(output)))
 }
 
 #[neon::main]
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
-    cx.export_function("encrypt_buf", encrypt_buf)?;
-    cx.export_function("encrypt_num", encrypt_num)?;
-    cx.export_function("encrypt_buf_left", encrypt_buf_left)?;
-    cx.export_function("encrypt_num_left", encrypt_num_left)?;
+    cx.export_function("encodeNumber", encode_num)?;
+    cx.export_function("encodeString", encode_string)?;
+    cx.export_function("encrypt", encrypt_num)?;
+    cx.export_function("encryptLeft", encrypt_num_left)?;
     cx.export_function("initCipher", init)?;
     cx.export_function("compare", compare)?;
     Ok(())
